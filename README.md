@@ -41,5 +41,7 @@ async function main() {
 }
 ```
 
+## Discord channel: https://discord.gg/hFhQeBCqWX
+
 
 
