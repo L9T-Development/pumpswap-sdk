@@ -39,7 +39,6 @@
     "pino-pretty": "^10.3.1",
     "pino-std-serializers": "^6.2.2",
     "postgres": "^3.4.5",
-    "pumpdotfun-sdk": "^1.3.2",
     "request": "^2.88.2",
     "tedious": "^18.6.1"
   },
