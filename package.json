@@ -32,13 +32,7 @@
     "dotenv": "^16.4.1",
     "express": "^4.21.1",
     "fast-csv": "^5.0.2",
-    "global-agent": "^3.0.0",
-    "global-tunnel-ng": "^2.7.1",
-    "http-proxy-agent": "^7.0.2",
-    "https-proxy-agent": "^7.0.4",
     "jito-ts": "^4.0.0",
-    "mssql": "^11.0.1",
-    "mysql2": "^3.11.5",
     "node-fetch": "^3.3.2",
     "node-telegram-bot-api": "^0.64.0",
     "pino": "^8.18.0",
@@ -47,11 +41,7 @@
     "postgres": "^3.4.5",
     "pumpdotfun-sdk": "^1.3.2",
     "request": "^2.88.2",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
-    "tedious": "^18.6.1",
-    "telegraf": "^4.16.3",
-    "ws": "^8.18.0"
+    "tedious": "^18.6.1"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.5",
