@@ -61,7 +61,7 @@ export class PumpSwapSDK {
       }
     )
     const pool = await getPumpSwapPool(mint)
-    const pumpswap_buy_tx = await this.createBuyInstruction(pool, user, mint, bought_token_amount, BigInt(solToBuy*(1+slippage)*LAMPORTS_PER_SOL));
+    const pumpswap_buy_tx = await this.createBuyInstruction(pool, user, mint, bought_token_amount, BigInt(Math.floor(solToBuy*(1+slippage)*LAMPORTS_PER_SOL)));
     const ata = getAssociatedTokenAddressSync(mint, user);
     const ix_list:any[] =[
         ...[

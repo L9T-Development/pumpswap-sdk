@@ -149,8 +149,8 @@ export const calculateWithSlippageBuy = (
   };
 export const getBuyTokenAmount = async (solAmount: bigint, mint:PublicKey) => {
     const pool_detail = await getPoolsWithPrices(mint);
-    const sol_reserve = BigInt(pool_detail[0].reserves.native *LAMPORTS_PER_SOL);
-    const token_reserve = BigInt(pool_detail[0].reserves.token * 10**6);
+    const sol_reserve = BigInt(Math.floor(pool_detail[0].reserves.native *LAMPORTS_PER_SOL));
+    const token_reserve = BigInt(Math.floor(pool_detail[0].reserves.token * 10**6));
     const product = sol_reserve * token_reserve;
     let new_sol_reserve = sol_reserve + solAmount;
     let new_token_reserve = product / new_sol_reserve + 1n;
