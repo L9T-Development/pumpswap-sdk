@@ -53,15 +53,15 @@ export class PumpSwapSDK {
     // this.connection = this.program.provider.connection;
   }
   public async buy(mint:PublicKey, user:PublicKey, solToBuy:number){
+    const slippage = 0.3; // Default: 30%
     const bought_token_amount = await getBuyTokenAmount(BigInt(solToBuy*LAMPORTS_PER_SOL), mint);
-    const amount_after_slippage = calculateWithSlippageBuy(bought_token_amount, 500n);
     logger.info(
       {
         status:`finding pumpswap pool for ${mint}`
       }
     )
     const pool = await getPumpSwapPool(mint)
-    const pumpswap_buy_tx = await this.createBuyInstruction(pool, user, mint, amount_after_slippage, BigInt(solToBuy*LAMPORTS_PER_SOL));
+    const pumpswap_buy_tx = await this.createBuyInstruction(pool, user, mint, bought_token_amount, BigInt(solToBuy*(1+slippage)*LAMPORTS_PER_SOL));
     const ata = getAssociatedTokenAddressSync(mint, user);
     const ix_list:any[] =[
         ...[
@@ -215,8 +215,8 @@ export class PumpSwapSDK {
       // Pack the instruction data: discriminator (8 bytes) + base_amount_in (8 bytes) + min_quote_amount_out (8 bytes)
       const data = Buffer.alloc(8 + 8 + 8); // 24 bytes total
       data.set(BUY_DISCRIMINATOR, 0); 
-      data.writeBigUInt64LE(BigInt(baseAmountOut), 8); // Write base_amount_in as little-endian u64
-      data.writeBigUInt64LE(BigInt(maxQuoteAmountIn), 16); // Write min_quote_amount_out as little-endian u64
+      data.writeBigUInt64LE(BigInt(baseAmountOut), 8); // Write base_amount_out as little-endian u64
+      data.writeBigUInt64LE(BigInt(maxQuoteAmountIn), 16); // Write max_quote_amount_in as little-endian u64
     
       // Create the transaction instruction
       return new TransactionInstruction({
