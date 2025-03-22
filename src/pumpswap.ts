@@ -66,7 +66,7 @@ export class PumpSwapSDK {
     const ix_list:any[] =[
         ...[
           ComputeBudgetProgram.setComputeUnitLimit({
-            units: 70000,
+            units: 300000,
           }),
           ComputeBudgetProgram.setComputeUnitPrice({
             microLamports: 696969
@@ -108,7 +108,7 @@ export class PumpSwapSDK {
     const ix_list:any[] =[
         ...[
           ComputeBudgetProgram.setComputeUnitLimit({
-            units: 70000,
+            units: 100000,
           }),
           ComputeBudgetProgram.setComputeUnitPrice({
             microLamports: 696969
@@ -149,7 +149,7 @@ export class PumpSwapSDK {
     const ix_list:any[] =[
         ...[
           ComputeBudgetProgram.setComputeUnitLimit({
-            units: 70000,
+            units: 100000,
           }),
           ComputeBudgetProgram.setComputeUnitPrice({
             microLamports: 696969
