@@ -21,20 +21,31 @@ interface PoolWithPrice extends Pool {
         token: number;
     }
 }
-
 const getPoolsWithBaseMint = async (mintAddress: PublicKey) => {
-    const response = await connection.getProgramAccounts(PUMP_AMM_PROGRAM_ID, {
-        filters: [
-            { "dataSize": 211 },
-            {
-              "memcmp": {
-                "offset": 43,
-                "bytes": mintAddress.toBase58()
-              }
+    let response , is_err=true,cnt=0;;
+    
+    while(is_err){
+      if(cnt>=10) break;
+      try{
+        response = await connection.getProgramAccounts(PUMP_AMM_PROGRAM_ID, {
+            filters: [
+                { "dataSize": 211 },
+                {
+                  "memcmp": {
+                    "offset": 43,
+                    "bytes": mintAddress.toBase58()
+                  }
+                }
+              ]
             }
-          ]
-        }
-    )
+        )
+        is_err = false;
+    }catch(err){
+        is_err = true
+      }
+      cnt++;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
 
     const mappedPools = response.map((pool) => {
         const data = Buffer.from(pool.account.data);
@@ -112,10 +123,20 @@ const getPoolsWithBaseMintQuoteWSOL = async (mintAddress: PublicKey) => {
 const getPriceAndLiquidity = async (pool: Pool) => {
     const wsolAddress = pool.poolData.poolQuoteTokenAccount;
     const tokenAddress = pool.poolData.poolBaseTokenAccount;
-   
-    const wsolBalance = await connection.getTokenAccountBalance(wsolAddress);
-    const tokenBalance = await connection.getTokenAccountBalance(tokenAddress);
-
+    let wsolBalance, tokenBalance;
+    let is_err = true, cnt=0;
+    while(is_err){
+      if(cnt>=10) break;
+      try{
+        wsolBalance = await connection.getTokenAccountBalance(wsolAddress);
+        tokenBalance = await connection.getTokenAccountBalance(tokenAddress);
+        is_err = false;
+      }catch(err){
+        is_err = true;
+      }
+      cnt++;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
     const price = wsolBalance.value.uiAmount! / tokenBalance.value.uiAmount!;
 
     return {
