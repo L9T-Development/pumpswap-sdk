@@ -160,7 +160,7 @@ export const getBuyTokenAmount = async (solAmount: bigint, mint:PublicKey) => {
 }
 
 export const getPumpSwapPool = async (mint:PublicKey) => {
-    const pools = await getPoolsWithBaseMintQuoteWSOL(mint);
+    const pools = await getPoolsWithBaseMint(mint);
     return pools[0].address;
 }
 
