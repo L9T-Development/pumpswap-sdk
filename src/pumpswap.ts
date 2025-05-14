@@ -15,11 +15,10 @@ import {
 import { Program, Provider } from "@coral-xyz/anchor";
 import {
   createAssociatedTokenAccountInstruction,
-  getAccount,
   getAssociatedTokenAddress,
-  getOrCreateAssociatedTokenAccount,
   getAssociatedTokenAddressSync,
-  createAssociatedTokenAccountIdempotentInstruction
+  createAssociatedTokenAccountIdempotentInstruction,
+  NATIVE_MINT
 } from "@solana/spl-token";
 import { PumpSwap, IDL } from "./IDL/index";
 import { connection, wallet_1 } from './constants';
@@ -27,7 +26,11 @@ import { sendNozomiTx } from './nozomi/tx-submission';
 import { sendBundle } from './jito';
 import {getBuyTokenAmount, 
   calculateWithSlippageBuy, 
-  getPumpSwapPool} from "./pool";
+  getPumpSwapPool,
+  getPoolsWithPrices,
+  getCoinCreatorVaultAuthorityPda,
+  getCoinCreatorVaultAtaPda,
+} from "./pool";
 import { getSPLBalance, logger } from "./utils";
 
 // Define static public keys
@@ -177,68 +180,27 @@ export class PumpSwapSDK {
     sendBundle(false, latestBlockhash.blockhash, transaction, pool, wallet_1)
   }
   async createBuyInstruction(
-      poolId: PublicKey,
-      user: PublicKey,
-      mint: PublicKey,
-      baseAmountOut: bigint, // Use bigint for u64
-      maxQuoteAmountIn: bigint // Use bigint for u64
-    ): Promise<TransactionInstruction> {
-    
-      // Compute associated token account addresses
-      const userBaseTokenAccount = await getAssociatedTokenAddress(mint, user);
-      const userQuoteTokenAccount = await getAssociatedTokenAddress(WSOL_TOKEN_ACCOUNT, user);
-      const poolBaseTokenAccount = await getAssociatedTokenAddress(mint, poolId, true);
-    
-      const poolQuoteTokenAccount = await getAssociatedTokenAddress(WSOL_TOKEN_ACCOUNT, poolId, true);
-    
-      // Define the accounts for the instruction
-      const accounts = [
-        { pubkey: poolId, isSigner: false, isWritable: false }, // pool_id (readonly)
-        { pubkey: user, isSigner: true, isWritable: true }, // user (signer)
-        { pubkey: global, isSigner: false, isWritable: false }, // global (readonly)
-        { pubkey: mint, isSigner: false, isWritable: false }, // mint (readonly)
-        { pubkey: WSOL_TOKEN_ACCOUNT, isSigner: false, isWritable: false }, // WSOL_TOKEN_ACCOUNT (readonly)
-        { pubkey: userBaseTokenAccount, isSigner: false, isWritable: true }, // user_base_token_account
-        { pubkey: userQuoteTokenAccount, isSigner: false, isWritable: true }, // user_quote_token_account
-        { pubkey: poolBaseTokenAccount, isSigner: false, isWritable: true }, // pool_base_token_account
-        { pubkey: poolQuoteTokenAccount, isSigner: false, isWritable: true }, // pool_quote_token_account
-        { pubkey: feeRecipient, isSigner: false, isWritable: false }, // fee_recipient (readonly)
-        { pubkey: feeRecipientAta, isSigner: false, isWritable: true }, // fee_recipient_ata
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // TOKEN_PROGRAM_ID (readonly)
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // TOKEN_PROGRAM_ID (readonly, duplicated as in Rust)
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System Program (readonly)
-        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // ASSOCIATED_TOKEN_PROGRAM_ID (readonly)
-        { pubkey: eventAuthority, isSigner: false, isWritable: false }, // event_authority (readonly)
-        { pubkey: PUMP_AMM_PROGRAM_ID, isSigner: false, isWritable: false }, // PUMP_AMM_PROGRAM_ID (readonly)
-      ];
-    
-      // Pack the instruction data: discriminator (8 bytes) + base_amount_in (8 bytes) + min_quote_amount_out (8 bytes)
-      const data = Buffer.alloc(8 + 8 + 8); // 24 bytes total
-      data.set(BUY_DISCRIMINATOR, 0); 
-      data.writeBigUInt64LE(BigInt(baseAmountOut), 8); // Write base_amount_out as little-endian u64
-      data.writeBigUInt64LE(BigInt(maxQuoteAmountIn), 16); // Write max_quote_amount_in as little-endian u64
-    
-      // Create the transaction instruction
-      return new TransactionInstruction({
-        keys: accounts,
-        programId: PUMP_AMM_PROGRAM_ID,
-        data: data,
-      });
-    }
-
-  async createSellInstruction(
     poolId: PublicKey,
     user: PublicKey,
     mint: PublicKey,
-    baseAmountIn: bigint, // Use bigint for u64
-    minQuoteAmountOut: bigint // Use bigint for u64
+    baseAmountOut: bigint, // Use bigint for u64
+    maxQuoteAmountIn: bigint // Use bigint for u64
   ): Promise<TransactionInstruction> {
+  
     // Compute associated token account addresses
     const userBaseTokenAccount = await getAssociatedTokenAddress(mint, user);
     const userQuoteTokenAccount = await getAssociatedTokenAddress(WSOL_TOKEN_ACCOUNT, user);
     const poolBaseTokenAccount = await getAssociatedTokenAddress(mint, poolId, true);
+  
     const poolQuoteTokenAccount = await getAssociatedTokenAddress(WSOL_TOKEN_ACCOUNT, poolId, true);
   
+    const pool_detail = await getPoolsWithPrices(mint);
+    const coin_creator_vault_authority_data = getCoinCreatorVaultAuthorityPda(pool_detail[0].poolData.coinCreator, PUMP_AMM_PROGRAM_ID);
+    console.log("coin_creator_vault_authority: ", coin_creator_vault_authority_data[0].toBase58());
+    const coin_creator_vault_authority = coin_creator_vault_authority_data[0];
+    const coin_creator_vault_ata_data = getCoinCreatorVaultAtaPda(coin_creator_vault_authority, TOKEN_PROGRAM_ID, NATIVE_MINT);
+    console.log("coin_creator_vault_ata: ", coin_creator_vault_ata_data[0].toBase58());
+    const coin_creator_vault_ata = coin_creator_vault_ata_data[0];
     // Define the accounts for the instruction
     const accounts = [
       { pubkey: poolId, isSigner: false, isWritable: false }, // pool_id (readonly)
@@ -258,13 +220,15 @@ export class PumpSwapSDK {
       { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // ASSOCIATED_TOKEN_PROGRAM_ID (readonly)
       { pubkey: eventAuthority, isSigner: false, isWritable: false }, // event_authority (readonly)
       { pubkey: PUMP_AMM_PROGRAM_ID, isSigner: false, isWritable: false }, // PUMP_AMM_PROGRAM_ID (readonly)
+      { pubkey: coin_creator_vault_ata, isSigner: false, isWritable: true }, // coin_creator_vault_ata (writable)
+      { pubkey: coin_creator_vault_authority, isSigner: false, isWritable: false }, // coin_creator_vault_authority (readonly)
     ];
   
     // Pack the instruction data: discriminator (8 bytes) + base_amount_in (8 bytes) + min_quote_amount_out (8 bytes)
     const data = Buffer.alloc(8 + 8 + 8); // 24 bytes total
-    data.set(SELL_DISCRIMINATOR, 0); 
-    data.writeBigUInt64LE(BigInt(baseAmountIn), 8); // Write base_amount_in as little-endian u64
-    data.writeBigUInt64LE(BigInt(minQuoteAmountOut), 16); // Write min_quote_amount_out as little-endian u64
+    data.set(BUY_DISCRIMINATOR, 0); 
+    data.writeBigUInt64LE(BigInt(baseAmountOut), 8); // Write base_amount_in as little-endian u64
+    data.writeBigUInt64LE(BigInt(maxQuoteAmountIn), 16); // Write min_quote_amount_out as little-endian u64
   
     // Create the transaction instruction
     return new TransactionInstruction({
@@ -273,4 +237,61 @@ export class PumpSwapSDK {
       data: data,
     });
   }
+
+async createSellInstruction(
+  poolId: PublicKey,
+  user: PublicKey,
+  mint: PublicKey,
+  baseAmountIn: bigint, // Use bigint for u64
+  minQuoteAmountOut: bigint // Use bigint for u64
+): Promise<TransactionInstruction> {
+  // Compute associated token account addresses
+  const userBaseTokenAccount = await getAssociatedTokenAddress(mint, user);
+  const userQuoteTokenAccount = await getAssociatedTokenAddress(WSOL_TOKEN_ACCOUNT, user);
+  const poolBaseTokenAccount = await getAssociatedTokenAddress(mint, poolId, true);
+  const poolQuoteTokenAccount = await getAssociatedTokenAddress(WSOL_TOKEN_ACCOUNT, poolId, true);
+
+  const pool_detail = await getPoolsWithPrices(mint);
+  const coin_creator_vault_authority_data = getCoinCreatorVaultAuthorityPda(pool_detail[0].poolData.coinCreator, PUMP_AMM_PROGRAM_ID);
+  console.log("coin_creator_vault_authority: ", coin_creator_vault_authority_data[0].toBase58());
+  const coin_creator_vault_authority = coin_creator_vault_authority_data[0];
+  const coin_creator_vault_ata_data = getCoinCreatorVaultAtaPda(coin_creator_vault_authority, TOKEN_PROGRAM_ID, NATIVE_MINT);
+  console.log("coin_creator_vault_ata: ", coin_creator_vault_ata_data[0].toBase58());
+  const coin_creator_vault_ata = coin_creator_vault_ata_data[0];
+  // Define the accounts for the instruction
+  const accounts = [
+    { pubkey: poolId, isSigner: false, isWritable: false }, // pool_id (readonly)
+    { pubkey: user, isSigner: true, isWritable: true }, // user (signer)
+    { pubkey: global, isSigner: false, isWritable: false }, // global (readonly)
+    { pubkey: mint, isSigner: false, isWritable: false }, // mint (readonly)
+    { pubkey: WSOL_TOKEN_ACCOUNT, isSigner: false, isWritable: false }, // WSOL_TOKEN_ACCOUNT (readonly)
+    { pubkey: userBaseTokenAccount, isSigner: false, isWritable: true }, // user_base_token_account
+    { pubkey: userQuoteTokenAccount, isSigner: false, isWritable: true }, // user_quote_token_account
+    { pubkey: poolBaseTokenAccount, isSigner: false, isWritable: true }, // pool_base_token_account
+    { pubkey: poolQuoteTokenAccount, isSigner: false, isWritable: true }, // pool_quote_token_account
+    { pubkey: feeRecipient, isSigner: false, isWritable: false }, // fee_recipient (readonly)
+    { pubkey: feeRecipientAta, isSigner: false, isWritable: true }, // fee_recipient_ata
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // TOKEN_PROGRAM_ID (readonly)
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // TOKEN_PROGRAM_ID (readonly, duplicated as in Rust)
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System Program (readonly)
+    { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // ASSOCIATED_TOKEN_PROGRAM_ID (readonly)
+    { pubkey: eventAuthority, isSigner: false, isWritable: false }, // event_authority (readonly)
+    { pubkey: PUMP_AMM_PROGRAM_ID, isSigner: false, isWritable: false }, // PUMP_AMM_PROGRAM_ID (readonly)
+    { pubkey: coin_creator_vault_ata, isSigner: false, isWritable: true }, // coin_creator_vault_ata (writable)
+    { pubkey: coin_creator_vault_authority, isSigner: false, isWritable: false }, // coin_creator_vault_authority (readonly)
+  ];
+
+  // Pack the instruction data: discriminator (8 bytes) + base_amount_in (8 bytes) + min_quote_amount_out (8 bytes)
+  const data = Buffer.alloc(8 + 8 + 8); // 24 bytes total
+  data.set(SELL_DISCRIMINATOR, 0); 
+  data.writeBigUInt64LE(BigInt(baseAmountIn), 8); // Write base_amount_in as little-endian u64
+  data.writeBigUInt64LE(BigInt(minQuoteAmountOut), 16); // Write min_quote_amount_out as little-endian u64
+
+  // Create the transaction instruction
+  return new TransactionInstruction({
+    keys: accounts,
+    programId: PUMP_AMM_PROGRAM_ID,
+    data: data,
+  });
+}
 }
