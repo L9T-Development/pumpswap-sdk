@@ -27,7 +27,9 @@
     "jito-ts": "^4.0.0",
     "node-fetch": "^3.3.2",
     "pino": "^8.18.0",
-    "request": "^2.88.2"
+    "pino-pretty": "^13.0.0",
+    "request": "^2.88.2",
+    "helius-sdk": "^1.5.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.5",

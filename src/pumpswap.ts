@@ -21,7 +21,7 @@ import {
   NATIVE_MINT
 } from "@solana/spl-token";
 import { PumpSwap, IDL } from "./IDL/index";
-import { connection, wallet_1 } from './constants';
+import { connection, wallet_1, helius } from './constants';
 import { sendNozomiTx } from './nozomi/tx-submission';
 import { sendBundle } from './jito';
 import {getBuyTokenAmount, 
@@ -31,7 +31,7 @@ import {getBuyTokenAmount,
   getCoinCreatorVaultAuthorityPda,
   getCoinCreatorVaultAtaPda,
 } from "./pool";
-import { getSPLBalance, logger } from "./utils";
+import { getSPLBalance } from "./utils";
 
 // Define static public keys
 const PUMP_AMM_PROGRAM_ID: PublicKey = new PublicKey('pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA');
@@ -58,11 +58,11 @@ export class PumpSwapSDK {
   public async buy(mint:PublicKey, user:PublicKey, solToBuy:number){
     const slippage = 0.3; // Default: 30%
     const bought_token_amount = await getBuyTokenAmount(BigInt(solToBuy*LAMPORTS_PER_SOL), mint);
-    logger.info(
-      {
-        status:`finding pumpswap pool for ${mint}`
-      }
-    )
+    // logger.info(
+    //   {
+    //     status:`finding pumpswap pool for ${mint}`
+    //   }
+    // )
     const pool = await getPumpSwapPool(mint)
     const pumpswap_buy_tx = await this.createBuyInstruction(pool, user, mint, bought_token_amount, BigInt(Math.floor(solToBuy*(1+slippage)*LAMPORTS_PER_SOL)));
     const ata = getAssociatedTokenAddressSync(mint, user);
@@ -94,17 +94,21 @@ export class PumpSwapSDK {
     }).compileToV0Message();
       const transaction = new VersionedTransaction(messageV0);
       transaction.sign([wallet_1]);
-      // sendNozomiTx(ix_list, wallet_1, latestBlockhash, "PumpSwap", "buy");
-      sendBundle(false, latestBlockhash.blockhash, transaction, pool, wallet_1)
+      // three different ways to send a transaction
+      //sendNozomiTx(ix_list, wallet_1, latestBlockhash, "PumpSwap", "buy");
+      //sendBundle(false, latestBlockhash.blockhash, transaction, pool, wallet_1)
+      console.log("sending transaction to helius");
+      const transactionSignature = await helius.rpc.sendTransaction(transaction);
+      console.log(`Successful buy: ${transactionSignature}`);
   }
 
   public async sell_exactAmount(mint:PublicKey, user:PublicKey, tokenAmount:number){
     const sell_token_amount = tokenAmount;
-    logger.info(
-      {
-        status:`finding pumpswap pool for ${mint}`
-      }
-    )
+    // logger.info(
+    //   {
+    //     status:`finding pumpswap pool for ${mint}`
+    //   }
+    // )
     const pool = await getPumpSwapPool(mint);
     const pumpswap_buy_tx = await this.createSellInstruction(await getPumpSwapPool(mint), user, mint, BigInt(Math.floor(sell_token_amount*10**6)), BigInt(0));
     const ata = getAssociatedTokenAddressSync(mint, user);
@@ -135,17 +139,21 @@ export class PumpSwapSDK {
   }).compileToV0Message();
     const transaction = new VersionedTransaction(messageV0);
     transaction.sign([wallet_1]);
+    // three different ways to send a transaction
     //sendNozomiTx(ix_list, wallet_1, latestBlockhash, "PumpSwap", "sell");
-    sendBundle(false, latestBlockhash.blockhash, transaction, pool, wallet_1)
+    //sendBundle(false, latestBlockhash.blockhash, transaction, pool, wallet_1)
+    console.log("sending transaction to helius");
+    const transactionSignature = await helius.rpc.sendTransaction(transaction);
+    console.log(`Successful sell: ${transactionSignature}`);
   }
   public async sell_percentage(mint:PublicKey, user:PublicKey, percentage_to_sell:number){
     const holding_token_amount = await getSPLBalance(connection, mint, user);
     const sell_token_amount = percentage_to_sell * holding_token_amount;  
-    logger.info(
-      {
-        status:`finding pumpswap pool for ${mint}`
-      }
-    )
+    // logger.info(
+    //   {
+    //     status:`finding pumpswap pool for ${mint}`
+    //   }
+    // )
     const pool = await getPumpSwapPool(mint);
     const pumpswap_buy_tx = await this.createSellInstruction(pool, user, mint, BigInt(Math.floor(sell_token_amount*10**6)), BigInt(0));
     const ata = getAssociatedTokenAddressSync(mint, user);
@@ -176,8 +184,12 @@ export class PumpSwapSDK {
   }).compileToV0Message();
     const transaction = new VersionedTransaction(messageV0);
     transaction.sign([wallet_1]);
+    // three different ways to send a transaction
     //sendNozomiTx(ix_list, wallet_1, latestBlockhash, "PumpSwap", "sell");
-    sendBundle(false, latestBlockhash.blockhash, transaction, pool, wallet_1)
+    //sendBundle(false, latestBlockhash.blockhash, transaction, pool, wallet_1)
+    console.log("sending transaction to helius");
+    const transactionSignature = await helius.rpc.sendTransaction(transaction);
+    console.log(`Successful sell: ${transactionSignature}`);
   }
   async createBuyInstruction(
     poolId: PublicKey,

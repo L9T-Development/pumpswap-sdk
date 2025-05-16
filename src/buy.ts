@@ -8,7 +8,7 @@ import { PumpSwapSDK } from './pumpswap';
 async function buy_example(){
 
   const pumpswap_sdk = new PumpSwapSDK();
-  pumpswap_sdk.buy(new PublicKey(""), wallet_1.publicKey, 0.22); // 0.22 sol
+  pumpswap_sdk.buy(new PublicKey(""), wallet_1.publicKey, 0.1); // 0.22 sol
 
 }
 buy_example();
